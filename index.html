@@ -106,6 +106,8 @@
 
     <!-- Draggable Image Mockup -->
     <img id="manipulated-image" alt="Image Mockup">
+    <!-- Hidden file input for image import -->
+    <input type="file" id="image-importer" class="hidden" accept="image/*">
 
     <!-- UI Controls -->
     <div class="fixed bottom-0 left-0 right-0 p-4 z-20">
@@ -172,6 +174,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const cameraFeed = document.getElementById('camera-feed');
             const image = document.getElementById('manipulated-image');
+            const imageImporter = document.getElementById('image-importer');
             const toggleButton = document.getElementById('toggle-controls-button');
             const closeControlsButton = document.getElementById('close-controls-button');
             const sliderPanel = document.getElementById('slider-panel');
@@ -352,6 +355,22 @@
             window.addEventListener('touchmove', onPointerMove, { passive: false });
             window.addEventListener('mouseup', onPointerUp);
             window.addEventListener('touchend', onPointerUp);
+
+            // --- Image Import Logic ---
+            image.addEventListener('dblclick', () => {
+                imageImporter.click();
+            });
+
+            imageImporter.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        image.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
 
             startCamera(); // Initialize with default camera
 
