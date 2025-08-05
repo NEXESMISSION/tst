@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Live Image Manipulator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrolling */
+        }
+        
+        /* Dark Theme UI */
+        .dark-ui {
+            background-color: rgba(23, 23, 23, 0.8); /* Dark, semi-transparent */
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Video Background Styles */
+        #camera-feed {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            z-index: -1;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror the camera feed */
+        }
+        
+        /* Draggable Image */
+        #manipulated-image {
+            position: absolute;
+            cursor: grab;
+            user-select: none;
+            will-change: transform; /* Performance optimization for animations */
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 8px;
+        }
+        #manipulated-image:active {
+            cursor: grabbing;
+        }
+
+        /* Slider Controls */
+        .slider-controls {
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.4s ease-in-out;
+        }
+
+        /* Active Control Button Style */
+        .control-button.active {
+            background-color: #4f46e5;
+            color: white;
+            border-color: #4f46e5;
+        }
+        
+        /* Custom slider track and thumb for dark theme */
+        input[type=range] {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          height: 8px;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          background: #a78bfa;
+          cursor: pointer;
+          border-radius: 50%;
+          border: 2px solid white;
+        }
+
+        input[type=range]::-moz-range-thumb {
+          width: 20px;
+          height: 20px;
+          background: #a78bfa;
+          cursor: pointer;
+          border-radius: 50%;
+           border: 2px solid white;
+        }
+    </style>
+</head>
+<body class="bg-black">
+    <!-- Camera Feed Background -->
+    <video autoplay muted playsinline id="camera-feed"></video>
+
+    <!-- Draggable Image Mockup -->
+    <img id="manipulated-image" src="https://placehold.co/200x300/a78bfa/171717?text=Drag\nMe" alt="Image Mockup">
+
+    <!-- UI Controls -->
+    <div class="fixed bottom-0 left-0 right-0 p-4 z-20">
+        <div class="max-w-md mx-auto">
+            <!-- Combined Controls Container -->
+            <div class="dark-ui rounded-2xl shadow-lg overflow-hidden">
+                <!-- Collapsible Slider Panel -->
+                <div id="slider-panel" class="slider-controls">
+                    <div class="p-4 pt-3 space-y-4">
+                        <!-- Control Buttons -->
+                        <div id="control-buttons" class="grid grid-cols-4 gap-2">
+                            <button class="control-button text-sm font-medium text-gray-300 rounded-lg py-2 border border-gray-600 hover:bg-gray-700/50 transition-colors" data-control="opacity">Opacity</button>
+                            <button class="control-button text-sm font-medium text-gray-300 rounded-lg py-2 border border-gray-600 hover:bg-gray-700/50 transition-colors" data-control="scale">Scale</button>
+                            <button class="control-button text-sm font-medium text-gray-300 rounded-lg py-2 border border-gray-600 hover:bg-gray-700/50 transition-colors" data-control="rotation">Rotation</button>
+                            <button id="reset-button" class="text-sm font-medium text-violet-300 rounded-lg py-2 border border-violet-800 bg-violet-900/40 hover:bg-violet-900/70 transition-colors flex items-center justify-center">
+                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
+                            </button>
+                        </div>
+                        <!-- Universal Slider -->
+                        <div class="pt-2 pb-1">
+                            <input id="universal-slider" type="range" class="w-full">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Toggle Button -->
+                <button id="toggle-controls-button" class="w-full py-3 px-6 flex items-center justify-center hover:bg-gray-700/30 transition-colors">
+                    <svg class="w-6 h-6 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const cameraFeed = document.getElementById('camera-feed');
+            const image = document.getElementById('manipulated-image');
+            const toggleButton = document.getElementById('toggle-controls-button');
+            const sliderPanel = document.getElementById('slider-panel');
+            const controlButtonsContainer = document.getElementById('control-buttons');
+            const universalSlider = document.getElementById('universal-slider');
+            const resetButton = document.getElementById('reset-button');
+
+            const initialImageState = {
+                opacity: 1,
+                scale: 1,
+                rotation: 0,
+            };
+
+            let imageState = { ...initialImageState };
+            
+            // --- State for gestures and dragging ---
+            let activeControl = 'opacity';
+            let isPointerDown = false;
+            
+            // Dragging state
+            let initialDragX, initialDragY, startDragX, startDragY;
+            
+            // Pinching state
+            let initialPinchDistance = null;
+            let initialScale = 1;
+            let initialRotationAngle = null;
+            let initialRotation = 0;
+            let initialMidpoint = null;
+            
+            // --- Helper functions ---
+            const centerImage = () => {
+                imageState.posX = (window.innerWidth - image.offsetWidth) / 2;
+                imageState.posY = (window.innerHeight - image.offsetHeight) / 2;
+            };
+
+            const getDistance = (touches) => Math.hypot(touches[1].clientX - touches[0].clientX, touches[1].clientY - touches[0].clientY);
+            const getAngle = (touches) => Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX) * 180 / Math.PI;
+            const getMidpoint = (touches) => ({ x: (touches[0].clientX + touches[1].clientX) / 2, y: (touches[0].clientY + touches[1].clientY) / 2 });
+            
+            // --- Core Update Function ---
+            const updateImageTransform = () => {
+                image.style.opacity = imageState.opacity;
+                image.style.transform = `translate(${imageState.posX}px, ${imageState.posY}px) rotate(${imageState.rotation}deg) scale(${imageState.scale})`;
+            };
+
+            // --- Initialization ---
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: true }).then(stream => cameraFeed.srcObject = stream)
+                    .catch(error => {
+                        console.error("Error accessing camera:", error);
+                        alert("Could not access the camera. Please allow camera permissions.");
+                    });
+            }
+            
+            image.onload = () => { centerImage(); updateImageTransform(); };
+            if (image.complete) { centerImage(); updateImageTransform(); }
+
+            // --- UI Controls Logic ---
+            const setupSliderForControl = (controlName, updateValue = true) => {
+                activeControl = controlName;
+                document.querySelectorAll('.control-button').forEach(btn => btn.classList.toggle('active', btn.dataset.control === controlName));
+                
+                if (updateValue) {
+                    switch (controlName) {
+                        case 'opacity': universalSlider.min = 0; universalSlider.max = 1; universalSlider.step = 0.01; universalSlider.value = imageState.opacity; break;
+                        case 'scale': universalSlider.min = 0.1; universalSlider.max = 7; universalSlider.step = 0.01; universalSlider.value = imageState.scale; break;
+                        case 'rotation': universalSlider.min = -360; universalSlider.max = 360; universalSlider.step = 1; universalSlider.value = imageState.rotation; break;
+                    }
+                }
+            };
+
+            const syncSlider = () => {
+                universalSlider.value = imageState[activeControl];
+            };
+
+            controlButtonsContainer.addEventListener('click', (e) => {
+                if (e.target.dataset.control) setupSliderForControl(e.target.dataset.control);
+            });
+
+            universalSlider.addEventListener('input', (e) => imageState[activeControl] = parseFloat(e.target.value));
+            
+            resetButton.addEventListener('click', () => {
+                imageState = { ...initialImageState };
+                centerImage();
+                setupSliderForControl('opacity');
+            });
+            
+            toggleButton.addEventListener('click', () => sliderPanel.style.maxHeight = sliderPanel.style.maxHeight ? null : sliderPanel.scrollHeight + "px");
+
+            setupSliderForControl('opacity');
+
+            // --- Pointer Events for Mouse and Touch ---
+            const onPointerDown = (e) => {
+                e.preventDefault();
+                isPointerDown = true;
+                initialDragX = imageState.posX;
+                initialDragY = imageState.posY;
+
+                if (e.touches && e.touches.length > 1) {
+                    initialPinchDistance = getDistance(e.touches);
+                    initialRotationAngle = getAngle(e.touches);
+                    initialMidpoint = getMidpoint(e.touches);
+                    initialScale = imageState.scale;
+                    initialRotation = imageState.rotation;
+                } else {
+                    startDragX = e.clientX || e.touches[0].clientX;
+                    startDragY = e.clientY || e.touches[0].clientY;
+                }
+            };
+
+            const onPointerMove = (e) => {
+                if (!isPointerDown) return;
+                e.preventDefault();
+
+                if (e.touches && e.touches.length > 1) {
+                    // --- Simultaneous Pan, Pinch, and Rotate ---
+                    const currentPinchDistance = getDistance(e.touches);
+                    const currentRotationAngle = getAngle(e.touches);
+                    const currentMidpoint = getMidpoint(e.touches);
+
+                    // Scale
+                    imageState.scale = initialScale * (currentPinchDistance / initialPinchDistance);
+                    // Rotation
+                    imageState.rotation = initialRotation + (currentRotationAngle - initialRotationAngle);
+                    // Pan (move)
+                    imageState.posX = initialDragX + (currentMidpoint.x - initialMidpoint.x);
+                    imageState.posY = initialDragY + (currentMidpoint.y - initialMidpoint.y);
+
+                } else if (isPointerDown) {
+                    // --- Single finger drag ---
+                    const currentX = e.clientX || e.touches[0].clientX;
+                    const currentY = e.clientY || e.touches[0].clientY;
+                    const dx = currentX - startDragX;
+                    const dy = currentY - startDragY;
+                    imageState.posX = initialDragX + dx;
+                    imageState.posY = initialDragY + dy;
+                }
+            };
+
+            const onPointerUp = (e) => {
+                if (e.touches && e.touches.length > 0) {
+                     onPointerDown(e); // Re-initialize if one finger is left
+                     return;
+                }
+                isPointerDown = false;
+            };
+
+            image.addEventListener('mousedown', onPointerDown);
+            image.addEventListener('touchstart', onPointerDown, { passive: false });
+            window.addEventListener('mousemove', onPointerMove);
+            window.addEventListener('touchmove', onPointerMove, { passive: false });
+            window.addEventListener('mouseup', onPointerUp);
+            window.addEventListener('touchend', onPointerUp);
+
+            // --- Animation Loop for Smooth Rendering ---
+            function animationLoop() {
+                updateImageTransform();
+                syncSlider(); // Keep slider in sync with gesture changes
+                requestAnimationFrame(animationLoop);
+            }
+            requestAnimationFrame(animationLoop);
+        });
+    </script>
+
+</body>
+</html>
