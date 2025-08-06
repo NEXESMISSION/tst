@@ -33,8 +33,14 @@
             height: auto;
             z-index: -1;
             object-fit: cover;
-            /* Camera feed is not flipped */
+            transition: transform 0.4s ease;
+            /* Default state is not flipped */
             transform: scaleX(1);
+        }
+        
+        /* Class to mirror the video feed when toggled */
+        #camera-feed.mirrored {
+            transform: scaleX(-1);
         }
         
         /* Draggable Image */
@@ -103,6 +109,11 @@
 
     <!-- Timer Display -->
     <div id="timer-display" class="fixed top-4 left-1/2 -translate-x-1/2 z-30 text-white text-xl font-semibold dark-ui px-4 py-2 rounded-xl shadow-lg">10:00</div>
+
+    <!-- Quick Flip Button -->
+    <button id="quick-flip-button" class="fixed top-4 right-4 z-30 dark-ui p-2 rounded-full text-white hover:bg-gray-700/50 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5m-5 2a9 9 0 0014.95 4.95M20 20v-5h-5m5-2a9 9 0 00-14.95-4.95"></path></svg>
+    </button>
 
     <!-- Draggable Image Mockup -->
     <img id="manipulated-image" alt="Image Mockup">
@@ -175,6 +186,7 @@
             const cameraFeed = document.getElementById('camera-feed');
             const image = document.getElementById('manipulated-image');
             const imageImporter = document.getElementById('image-importer');
+            const quickFlipButton = document.getElementById('quick-flip-button');
             const toggleButton = document.getElementById('toggle-controls-button');
             const closeControlsButton = document.getElementById('close-controls-button');
             const sliderPanel = document.getElementById('slider-panel');
@@ -212,15 +224,10 @@
             const getMidpoint = (touches) => ({ x: (touches[0].clientX + touches[1].clientX) / 2, y: (touches[0].clientY + touches[1].clientY) / 2 });
             
             const startCamera = async (deviceId = null) => {
-                // Stop any existing stream before starting a new one
                 if (cameraFeed.srcObject) {
                     cameraFeed.srcObject.getTracks().forEach(track => track.stop());
                 }
-
-                const constraints = {
-                    video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }
-                };
-
+                const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' } };
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia(constraints);
                     cameraFeed.srcObject = stream;
@@ -268,6 +275,12 @@
                 }, 1000);
             };
 
+            // --- Event Listeners ---
+
+            quickFlipButton.addEventListener('click', () => {
+                cameraFeed.classList.toggle('mirrored');
+            });
+
             controlButtonsContainer.addEventListener('click', (e) => {
                 if (e.target.dataset.control) setupSliderForControl(e.target.dataset.control);
             });
@@ -310,8 +323,6 @@
                      console.error("Error enumerating devices:", error);
                 }
             });
-
-            setupSliderForControl('opacity');
 
             const onPointerDown = (e) => {
                 e.preventDefault();
@@ -383,7 +394,10 @@
                 }
             });
 
+            // --- Initial Setup ---
+            setupSliderForControl('opacity');
             startCamera(); 
+            cameraFeed.classList.add('mirrored'); // Start with mirrored view by default
 
             image.onload = () => {
                 centerImage();
