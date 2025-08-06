@@ -194,6 +194,7 @@
             let activeControl = 'opacity', isPointerDown = false, initialDragX, initialDragY, startDragX, startDragY;
             let initialPinchDistance = null, initialScale = 1, initialRotationAngle = null, initialRotation = 0, initialMidpoint = null;
             let timerInterval = null;
+            let lastTap = 0; // For double-tap detection
             
             // --- Core Update Function ---
             const updateImageTransform = () => {
@@ -213,7 +214,7 @@
             
             const startCamera = async (deviceId = null) => {
                 try {
-                    const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : true };
+                    const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "user" } };
                     const stream = await navigator.mediaDevices.getUserMedia(constraints);
                     cameraFeed.srcObject = stream;
                 } catch (error) {
@@ -359,6 +360,15 @@
             // --- Image Import Logic ---
             image.addEventListener('dblclick', () => {
                 imageImporter.click();
+            });
+            
+            image.addEventListener('touchend', (e) => {
+                const currentTime = new Date().getTime();
+                const timeSinceLastTap = currentTime - lastTap;
+                if(timeSinceLastTap < 300 && timeSinceLastTap > 0){
+                     imageImporter.click();
+                }
+                lastTap = currentTime;
             });
 
             imageImporter.addEventListener('change', (e) => {
