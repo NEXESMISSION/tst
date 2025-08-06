@@ -196,7 +196,6 @@
             let timerInterval = null;
             let lastTap = 0; // For double-tap detection
             
-            // --- Core Update Function ---
             const updateImageTransform = () => {
                 image.style.transform = `translate(${imageState.posX}px, ${imageState.posY}px) rotate(${imageState.rotation}deg) scale(${imageState.scale})`;
                 image.style.opacity = imageState.opacity;
@@ -213,12 +212,16 @@
             const getMidpoint = (touches) => ({ x: (touches[0].clientX + touches[1].clientX) / 2, y: (touches[0].clientY + touches[1].clientY) / 2 });
             
             const startCamera = async (deviceId = null) => {
+                // Stop any existing stream before starting a new one
+                if (cameraFeed.srcObject) {
+                    cameraFeed.srcObject.getTracks().forEach(track => track.stop());
+                }
+
+                const constraints = {
+                    video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }
+                };
+
                 try {
-                    // Stop any existing stream before starting a new one
-                    if (cameraFeed.srcObject) {
-                        cameraFeed.srcObject.getTracks().forEach(track => track.stop());
-                    }
-                    const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' } };
                     const stream = await navigator.mediaDevices.getUserMedia(constraints);
                     cameraFeed.srcObject = stream;
                 } catch (error) {
@@ -243,13 +246,13 @@
 
             const togglePanel = (panel) => {
                 const otherPanel = panel === sliderPanel ? cameraListPanel : sliderPanel;
-                otherPanel.style.maxHeight = null; // Close other panel
+                otherPanel.style.maxHeight = null;
                 panel.style.maxHeight = panel.style.maxHeight ? null : panel.scrollHeight + "px";
             };
 
             const startTimer = () => {
                 clearInterval(timerInterval);
-                let timeLeft = 600; // 10 minutes
+                let timeLeft = 600;
                 timerDisplay.textContent = "10:00";
                 timerInterval = setInterval(() => {
                     if (timeLeft <= 0) {
@@ -288,7 +291,7 @@
                     const videoDevices = devices.filter(device => device.kind === 'videoinput');
                     cameraListDiv.innerHTML = ''; 
                     
-                    if(videoDevices.length > 1) { // Only show list if there's more than one camera
+                    if(videoDevices.length > 1) {
                         videoDevices.forEach((device, index) => {
                             const button = document.createElement('button');
                             button.textContent = device.label || `Camera ${index + 1}`;
