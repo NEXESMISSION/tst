@@ -33,7 +33,7 @@
             height: auto;
             z-index: -1;
             object-fit: cover;
-            /* Flipped horizontally (mirrored) ONLY */
+            /* This rule applies to any camera source */
             transform: scaleX(-1);
         }
         
@@ -45,7 +45,6 @@
             will-change: transform; /* Performance optimization for animations */
             border: 2px dashed rgba(255, 255, 255, 0.5);
             border-radius: 8px;
-            /* The image is initially hidden until its position is set */
             visibility: hidden;
         }
         #manipulated-image:active {
@@ -206,7 +205,7 @@
             const centerImage = () => {
                 imageState.posX = (window.innerWidth - image.offsetWidth) / 2;
                 imageState.posY = (window.innerHeight - image.offsetHeight) / 2;
-                updateImageTransform(); // Apply the new position immediately
+                updateImageTransform();
             };
 
             const getDistance = (touches) => Math.hypot(touches[1].clientX - touches[0].clientX, touches[1].clientY - touches[0].clientY);
@@ -215,7 +214,11 @@
             
             const startCamera = async (deviceId = null) => {
                 try {
-                    const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "user" } };
+                    // Stop any existing stream before starting a new one
+                    if (cameraFeed.srcObject) {
+                        cameraFeed.srcObject.getTracks().forEach(track => track.stop());
+                    }
+                    const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' } };
                     const stream = await navigator.mediaDevices.getUserMedia(constraints);
                     cameraFeed.srcObject = stream;
                 } catch (error) {
@@ -252,7 +255,7 @@
                     if (timeLeft <= 0) {
                         clearInterval(timerInterval);
                         timerDisplay.textContent = "0:00";
-                        sessionModal.classList.remove('hidden'); // Show the modal
+                        sessionModal.classList.remove('hidden');
                         return;
                     }
                     timeLeft--;
@@ -269,7 +272,7 @@
             universalSlider.addEventListener('input', (e) => imageState[activeControl] = parseFloat(e.target.value));
             
             resetButton.addEventListener('click', () => {
-                imageState = { ...initialImageState };
+                imageState = { ...initialImageState, posX: imageState.posX, posY: imageState.posY };
                 centerImage();
                 setupSliderForControl('opacity');
                 startTimer();
@@ -283,16 +286,16 @@
                 try {
                     const devices = await navigator.mediaDevices.enumerateDevices();
                     const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                    cameraListDiv.innerHTML = ''; // Clear previous list
+                    cameraListDiv.innerHTML = ''; 
                     
-                    if(videoDevices.length > 0) {
+                    if(videoDevices.length > 1) { // Only show list if there's more than one camera
                         videoDevices.forEach((device, index) => {
                             const button = document.createElement('button');
                             button.textContent = device.label || `Camera ${index + 1}`;
                             button.className = 'w-full text-left p-2 text-gray-300 hover:bg-gray-700/50 rounded-md transition-colors text-sm';
                             button.onclick = () => {
                                 startCamera(device.deviceId);
-                                cameraListPanel.style.maxHeight = null; // Close list after selection
+                                cameraListPanel.style.maxHeight = null;
                             };
                             cameraListDiv.appendChild(button);
                         });
@@ -358,15 +361,11 @@
             window.addEventListener('mouseup', onPointerUp);
             window.addEventListener('touchend', onPointerUp);
 
-            // --- Image Import Logic ---
-            image.addEventListener('dblclick', () => {
-                imageImporter.click();
-            });
+            image.addEventListener('dblclick', () => imageImporter.click());
             
             image.addEventListener('touchend', (e) => {
                 const currentTime = new Date().getTime();
-                const timeSinceLastTap = currentTime - lastTap;
-                if(timeSinceLastTap < 300 && timeSinceLastTap > 0){
+                if(currentTime - lastTap < 300){
                      imageImporter.click();
                 }
                 lastTap = currentTime;
@@ -376,27 +375,25 @@
                 const file = e.target.files[0];
                 if (file) {
                     const reader = new FileReader();
-                    reader.onload = (event) => {
-                        image.src = event.target.result;
-                    };
+                    reader.onload = (event) => image.src = event.target.result;
                     reader.readAsDataURL(file);
                 }
             });
 
-            startCamera(); // Initialize with default camera
+            startCamera(); 
 
             image.onload = () => {
                 centerImage();
-                image.style.visibility = 'visible'; // Make image visible after positioning
+                image.style.visibility = 'visible';
             };
             image.src = "https://placehold.co/200x300/a78bfa/171717?text=Drag\nMe";
             
             closeModalButton.addEventListener('click', () => {
                 sessionModal.classList.add('hidden');
-                startTimer(); // Restart timer after closing modal
+                startTimer();
             });
 
-            startTimer(); // Initial timer start
+            startTimer(); 
 
             function animationLoop() {
                 updateImageTransform();
